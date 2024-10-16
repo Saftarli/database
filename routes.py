@@ -1,38 +1,55 @@
-from flask import  render_template,request
+from flask import render_template, request, redirect, url_for
+from flask_login import login_user,logout_user,current_user, login_required
+from models import User
 
-from models import Person
+def register_routes(app,db,bcrypt):
 
-def register_routes(app,db):
-
-    @app.route('/', methods=['GET','POST'])
+    @app.route('/')
     def index():
-        if request.method == 'GET':
-            people = Person.query.all()
-            return render_template('index.html', people=people)
-        elif request.method == 'POST':
-            name = request.form['name']
-            age = int(request.form['age'])
-            job = request.form['job']
+        return render_template('index.html')
 
+    @app.route('/signup', methods=['GET','POST'])
+    def signup():
+        if request.method == "GET":
+            return render_template('signup.html')
+        elif request.method == "POST":
+            username = request.form['username']
+            password = request.form['password']
 
-            person = Person(name=name, age=age, job=job)
+            hashed_password = bcrypt.generate_password_hash(password)
 
-            db.session.add(person)
+            user = User(username=username, password=hashed_password)
+
+            db.session.add(user)
             db.session.commit()
+            return redirect(url_for('index'))
 
-            people = Person.query.all()
-            return render_template('index.html', people=people)
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        users = User.query.all()
+        axrinci_user = users[1]
+        sifre = axrinci_user.password
+        print(sifre,'#&#^#^#&#^@&#^@^@&#^@^')
+        if request.method == "GET":
+            return render_template('login.html')
+        elif request.method == "POST":
+            username = request.form['username']
+            password = request.form['password']
 
-    @app.route('/delete/<pid>', methods=['DELETE'])
-    def delete(pid):
-        Person.query.filter(Person.pid == pid).delete()
+            user = User.query.filter_by(username=username).first()
+            if bcrypt.check_password_hash(sifre,password):
+                login_user(user)
+                return redirect(url_for('index'))
+            else:
+                return 'Failed'
 
-        db.session.commit()
 
-        people = Person.query.all()
-        return render_template('index.html', people=people)
+    @app.route('/logout')
+    def logout():
+        logout_user()
+        return redirect(url_for('index'))
 
-    @app.route('/details/<pid>')
-    def details(pid):
-        person = Person.query.filter(Person.pid == pid).first()
-        return  render_template('details.html', person=person)
+    @app.route('/secret')
+    @login_required
+    def secret():
+        return  'No permission to access this page'
